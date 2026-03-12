@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Triagem SLR — Destaque de Termos</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --panel2:#0c162c;
+      --text:#e8eefc;
+      --muted:#a9b7d6;
+      --border:rgba(255,255,255,.10);
+      --accent:#7aa2ff;
+      --ok:#28d17c;
+      --warn:#ffd166;
+      --bad:#ff5c7a;
+      --hlText:#10131a;
+      --shadow: 0 10px 25px rgba(0,0,0,.35);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background: radial-gradient(900px 500px at 20% -10%, rgba(122,162,255,.25), transparent 55%),
+                  radial-gradient(800px 450px at 110% 0%, rgba(255,92,122,.18), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+
+    header{
+      position: sticky;
+      top:0;
+      z-index:10;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(to bottom, rgba(11,18,32,.92), rgba(11,18,32,.72));
+      border-bottom:1px solid var(--border);
+    }
+
+    .wrap{ max-width: 1500px; margin: 0 auto; padding: 14px 16px; }
+
+    .titlebar{
+      display:flex; gap:12px; align-items:flex-start; justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    h1{
+      font-size: 16px; margin: 0;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .controls{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: 1.2fr 1.2fr 1fr 1fr 1fr;
+      gap:10px;
+      align-items:end;
+    }
+    @media (max-width: 1100px){
+      .controls{ grid-template-columns: 1fr 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(15,27,51,.92), rgba(12,22,44,.92));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+    }
+
+    label{
+      display:block;
+      color:var(--muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+      letter-spacing: .2px;
+    }
+
+    input[type="file"]{
+      width:100%;
+    }
+
+    input[type="text"], input[type="search"], select{
+      width:100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.20);
+      color: var(--text);
+      outline:none;
+    }
+    input::placeholder{ color: rgba(169,183,214,.7); }
+
+    .row{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+
+    button{
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(122,162,255,.18);
+      color: var(--text);
+      cursor:pointer;
+      transition: transform .05s ease, background .15s ease;
+      font-weight:600;
+      letter-spacing:.2px;
+    }
+    button:hover{ background: rgba(122,162,255,.26); }
+    button:active{ transform: translateY(1px); }
+
+    button.secondary{ background: rgba(255,255,255,.06); }
+    button.secondary:hover{ background: rgba(255,255,255,.10); }
+
+    .stats{
+      display:flex; gap:10px; flex-wrap:wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pill{
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+    .pill strong{ color: var(--text); }
+
+    main .wrap{ padding-top: 12px; padding-bottom: 20px; }
+
+    .tableWrap{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      overflow:auto;
+      background: rgba(0,0,0,.12);
+      box-shadow: var(--shadow);
+    }
+
+    table{
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 1360px;
+      font-size: 12px;
+    }
+    thead th{
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: linear-gradient(180deg, rgba(15,27,51,.96), rgba(15,27,51,.90));
+      border-bottom: 1px solid var(--border);
+      text-align:left;
+      padding: 10px 10px;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    tbody td{
+      border-top: 1px solid rgba(255,255,255,.06);
+      vertical-align: top;
+      padding: 8px 10px;
+    }
+    tbody tr:hover{
+      background: rgba(122,162,255,.06);
+    }
+
+    .col-id{ width:60px; }
+    .col-title{ width: 320px; }
+    .col-abs{ width: 600px; }
+    .col-key{ width: 280px; }
+    .col-doi{ width: 72px; text-align:center; }
+    .col-decision{ width: 140px; }
+    .col-reason{ width: 260px; }
+
+    .cellText{
+      max-height: 7.2em;
+      overflow:auto;
+      padding-right:6px;
+      line-height: 1.3em;
+    }
+    .cellText.absCell{
+      max-height: 13.5em;
+      min-height: 5.2em;
+    }
+
+    mark.hl{
+      color: var(--hlText);
+      border-radius: 6px;
+      padding: 0 .18em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .doiLink{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      text-decoration:none;
+      color: var(--text);
+      font-size: 16px;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease;
+    }
+    .doiLink:hover{
+      background: rgba(122,162,255,.18);
+      border-color: rgba(122,162,255,.45);
+    }
+    .doiLink:active{ transform: translateY(1px); }
+    .doiEmpty{
+      color: var(--muted);
+      opacity: .6;
+      font-size: 14px;
+    }
+
+    .decisionSelect{
+      width: 100%;
+      padding: 7px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline:none;
+      font-size: 12px;
+    }
+    .decisionSelect.read{ border-color: rgba(40,209,124,.55); background: rgba(40,209,124,.10); }
+    .decisionSelect.exclude{ border-color: rgba(255,92,122,.55); background: rgba(255,92,122,.10); }
+    .decisionSelect.maybe{ border-color: rgba(255,209,102,.55); background: rgba(255,209,102,.10); }
+
+    .reasonInput{
+      width:100%;
+      min-height: 36px;
+      resize: vertical;
+      padding: 7px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline:none;
+      font-size: 12px;
+    }
+
+    .muted{ color: var(--muted); }
+    .tiny{ font-size: 11px; color: var(--muted); }
+
+    .footerNote{
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .kbd{
+      font-family: var(--mono);
+      border:1px solid var(--border);
+      border-bottom-color: rgba(255,255,255,.18);
+      background: rgba(0,0,0,.20);
+      padding: 1px 6px;
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 11px;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="titlebar">
+      <div>
+        <h1>Triagem para Mapeamento Sistemático — Destaque de Termos</h1>
+        <div class="sub">Importe um CSV, cole seus termos (separados por <span class="kbd">;</span>) e visualize Title/Abstract/Keywords com grifo. Marque decisão + razão e exporte.</div>
+      </div>
+      <div class="stats" id="stats">
+        <span class="pill">Artigos: <strong id="statTotal">0</strong></span>
+        <span class="pill">Mostrando: <strong id="statShown">0</strong></span>
+        <span class="pill">Ler: <strong id="statRead">0</strong></span>
+        <span class="pill">Excluir: <strong id="statExclude">0</strong></span>
+        <span class="pill">Talvez: <strong id="statMaybe">0</strong></span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="card">
+        <label>1) Importar CSV</label>
+        <input type="file" id="csvFile" accept=".csv,text/csv" />
+        <div class="tiny" style="margin-top:6px;">
+          Dica: UTF-8 recomendado. Colunas esperadas: <span class="kbd">title</span>, <span class="kbd">abstract</span>, <span class="kbd">keywords</span>/<span class="kbd">author keywords</span>, <span class="kbd">doi</span> (nomes flexíveis).
+        </div>
+      </div>
+
+      <div class="card">
+        <label>2) Termos para grifar (separe por “;”)</label>
+        <input type="text" id="termsInput" placeholder="ex: machine learning; systematic mapping; ontolog*" />
+        <div class="tiny" style="margin-top:6px;">
+          Cada termo recebe uma cor própria. Suporta curingas: <span class="kbd">*</span> no fim (ex: <span class="kbd">ontolog*</span>). Busca case-insensitive.
+        </div>
+      </div>
+
+      <div class="card">
+        <label>3) Filtrar (texto livre)</label>
+        <input type="search" id="filterInput" placeholder="filtra em title/abstract/keywords..." />
+        <div class="tiny" style="margin-top:6px;">
+          Atalho: <span class="kbd">Ctrl</span> + <span class="kbd">K</span> foca o filtro.
+        </div>
+      </div>
+
+      <div class="card">
+        <label>4) Mostrar apenas</label>
+        <select id="decisionFilter">
+          <option value="all">Todos</option>
+          <option value="read">Marcados “Ler”</option>
+          <option value="exclude">Marcados “Excluir”</option>
+          <option value="maybe">Marcados “Talvez”</option>
+          <option value="undecided">Sem decisão</option>
+        </select>
+        <div class="tiny" style="margin-top:6px;">
+          Ajuda a revisar decisões rapidamente.
+        </div>
+      </div>
+
+      <div class="card">
+        <label>5) Ações</label>
+        <div class="row">
+          <button id="exportBtn">Exportar decisões (CSV)</button>
+          <button class="secondary" id="clearDecisionsBtn" title="Limpa decisão/razão dos itens filtrados">Limpar (filtrados)</button>
+          <button class="secondary" id="resetAllBtn" title="Remove dados carregados e zera tudo">Resetar</button>
+        </div>
+        <div class="tiny" style="margin-top:6px;">
+          Exporta CSV com decisão/razão + campos originais.
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-id">#</th>
+            <th class="col-title">Title</th>
+            <th class="col-abs">Abstract</th>
+            <th class="col-key">Keywords</th>
+            <th class="col-doi">DOI</th>
+            <th class="col-decision">Decisão</th>
+            <th class="col-reason">Razão</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr>
+            <td colspan="7" class="muted" style="padding:14px 10px;">
+              Importe um CSV para começar.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footerNote">
+      Observação: todo o processamento é local no seu navegador (sem enviar dados para servidor).
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+  let rawRows = [];
+  let viewRows = [];
+  let headers = [];
+  let detected = { title:null, abstract:null, keywords:null, doi:null };
+
+  const $ = (sel) => document.querySelector(sel);
+
+  function normalizeHeader(h){
+    return String(h || "").trim().toLowerCase();
+  }
+
+  function detectColumns(headersNorm){
+    const pick = (cands) => cands.find(c => headersNorm.includes(c)) || null;
+
+    const title = pick(["title", "titulo", "título", "document title", "paper title", "article title", "nome", "name"]);
+    const abs   = pick(["abstract", "resumo", "sumario", "summary", "descricao", "description"]);
+    const key   = pick(["author keywords", "author keyword", "keywords", "palavras-chave", "palavras chave", "keyword", "index terms", "terms", "keywords plus"]);
+    const doi   = pick(["doi", "article doi", "document doi", "digital object identifier", "source doi", "publication doi"]);
+
+    return { title, abstract: abs, keywords: key, doi };
+  }
+
+  function parseCSV(text){
+    const rows = [];
+    let i = 0, field = "", row = [], inQuotes = false;
+
+    const pushField = () => { row.push(field); field = ""; };
+    const pushRow = () => { rows.push(row); row = []; };
+
+    while (i < text.length){
+      const c = text[i];
+
+      if (inQuotes){
+        if (c === '"'){
+          if (text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        } else {
+          field += c; i++; continue;
+        }
+      } else {
+        if (c === '"'){ inQuotes = true; i++; continue; }
+        if (c === ','){ pushField(); i++; continue; }
+        if (c === '\n'){
+          pushField(); pushRow(); i++; continue;
+        }
+        if (c === '\r'){ i++; continue; }
+        field += c; i++; continue;
+      }
+    }
+
+    pushField();
+    if (row.some(v => String(v).trim() !== "")) pushRow();
+
+    if (rows.length === 0) return { headers: [], data: [] };
+
+    const hdr = rows[0].map(h => String(h ?? "").trim());
+    const data = rows.slice(1).map(r => {
+      const obj = {};
+      for (let k=0; k<hdr.length; k++) obj[hdr[k]] = r[k] ?? "";
+      return obj;
+    });
+    return { headers: hdr, data };
+  }
+
+  function escapeHTML(str){
+    return String(str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  function randomColorFromSeed(seed){
+    let hash = 0;
+    const src = String(seed || "termo");
+    for (let i = 0; i < src.length; i++){
+      hash = ((hash << 5) - hash) + src.charCodeAt(i);
+      hash |= 0;
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue} 88% 74%)`;
+  }
+
+  function buildTermSpecs(termsRaw){
+    const terms = String(termsRaw || "")
+      .split(";")
+      .map(t => t.trim())
+      .filter(Boolean);
+
+    return terms.map((term, idx) => {
+      const isWildcard = term.endsWith("*");
+      const core = isWildcard ? term.slice(0, -1) : term;
+      const safe = core.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (!safe) return null;
+      const pattern = isWildcard ? `${safe}\\w*` : safe;
+      return {
+        term,
+        color: randomColorFromSeed(`${term}-${idx}`),
+        regex: new RegExp(pattern, "gi")
+      };
+    }).filter(Boolean);
+  }
+
+  function highlight(text, specs){
+    const original = String(text ?? "");
+    if (!specs || specs.length === 0) return escapeHTML(original);
+
+    const matches = [];
+    for (const spec of specs){
+      spec.regex.lastIndex = 0;
+      let m;
+      while ((m = spec.regex.exec(original)) !== null){
+        const start = m.index;
+        const end = start + m[0].length;
+        if (end > start){
+          matches.push({ start, end, color: spec.color });
+        }
+        if (m.index === spec.regex.lastIndex) spec.regex.lastIndex++;
+      }
+    }
+
+    if (matches.length === 0) return escapeHTML(original);
+
+    matches.sort((a, b) => (a.start - b.start) || ((b.end - b.start) - (a.end - a.start)));
+
+    const merged = [];
+    let cursor = 0;
+    for (const match of matches){
+      if (match.start < cursor) continue;
+      merged.push(match);
+      cursor = match.end;
+    }
+
+    let out = "";
+    let lastIndex = 0;
+    for (const match of merged){
+      out += escapeHTML(original.slice(lastIndex, match.start));
+      out += `<mark class="hl" style="background:${escapeHTML(match.color)};">${escapeHTML(original.slice(match.start, match.end))}</mark>`;
+      lastIndex = match.end;
+    }
+    out += escapeHTML(original.slice(lastIndex));
+    return out;
+  }
+
+  function rowTextForFilter(r){
+    const t = String(r._title ?? "");
+    const a = String(r._abstract ?? "");
+    const k = String(r._keywords ?? "");
+    const d = String(r._doi ?? "");
+    return (t + " " + a + " " + k + " " + d).toLowerCase();
+  }
+
+  function applyDecisionClass(selectEl){
+    selectEl.classList.remove("read","exclude","maybe");
+    if (selectEl.value === "read") selectEl.classList.add("read");
+    if (selectEl.value === "exclude") selectEl.classList.add("exclude");
+    if (selectEl.value === "maybe") selectEl.classList.add("maybe");
+  }
+
+  function updateStats(shown){
+    const total = viewRows.length;
+    const read = viewRows.filter(r => r.decision === "read").length;
+    const excl = viewRows.filter(r => r.decision === "exclude").length;
+    const mayb = viewRows.filter(r => r.decision === "maybe").length;
+
+    $("#statTotal").textContent = total;
+    $("#statShown").textContent = shown;
+    $("#statRead").textContent = read;
+    $("#statExclude").textContent = excl;
+    $("#statMaybe").textContent = mayb;
+  }
+
+  function normalizeDOI(value){
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw)) return raw;
+
+    const cleaned = raw
+      .replace(/^doi\s*[:/]?\s*/i, "")
+      .replace(/^https?:\/\/(dx\.)?doi\.org\//i, "")
+      .trim();
+
+    if (!cleaned) return "";
+    return `https://doi.org/${cleaned}`;
+  }
+
+  function render(){
+    const tbody = $("#tbody");
+    if (viewRows.length === 0){
+      tbody.innerHTML = `
+        <tr><td colspan="7" class="muted" style="padding:14px 10px;">Importe um CSV para começar.</td></tr>
+      `;
+      updateStats(0);
+      return;
+    }
+
+    const termSpecs = buildTermSpecs($("#termsInput").value);
+    const filter = $("#filterInput").value.trim().toLowerCase();
+    const decisionFilter = $("#decisionFilter").value;
+
+    const filtered = viewRows.filter(r => {
+      if (decisionFilter === "read" && r.decision !== "read") return false;
+      if (decisionFilter === "exclude" && r.decision !== "exclude") return false;
+      if (decisionFilter === "maybe" && r.decision !== "maybe") return false;
+      if (decisionFilter === "undecided" && r.decision) return false;
+
+      if (!filter) return true;
+      return rowTextForFilter(r).includes(filter);
+    });
+
+    tbody.innerHTML = filtered.map(r => {
+      const titleHTML = highlight(r._title, termSpecs);
+      const absHTML   = highlight(r._abstract, termSpecs);
+      const keyHTML   = highlight(r._keywords, termSpecs);
+      const doiURL = normalizeDOI(r._doi);
+
+      const decision = r.decision || "";
+      const reason = r.reason || "";
+
+      return `
+        <tr data-id="${r._id}">
+          <td class="col-id muted">${r._id}</td>
+
+          <td class="col-title">
+            <div class="cellText">${titleHTML || '<span class="muted">(vazio)</span>'}</div>
+          </td>
+
+          <td class="col-abs">
+            <div class="cellText absCell">${absHTML || '<span class="muted">(vazio)</span>'}</div>
+          </td>
+
+          <td class="col-key">
+            <div class="cellText">${keyHTML || '<span class="muted">(vazio)</span>'}</div>
+          </td>
+
+          <td class="col-doi">
+            ${doiURL
+              ? `<a class="doiLink" href="${escapeHTML(doiURL)}" target="_blank" rel="noopener noreferrer" title="Abrir DOI">🔗</a>`
+              : `<span class="doiEmpty" title="DOI não informado">—</span>`
+            }
+          </td>
+
+          <td class="col-decision">
+            <select class="decisionSelect" data-role="decision">
+              <option value="" ${decision==="" ? "selected":""}>—</option>
+              <option value="read" ${decision==="read" ? "selected":""}>Ler</option>
+              <option value="exclude" ${decision==="exclude" ? "selected":""}>Excluir</option>
+              <option value="maybe" ${decision==="maybe" ? "selected":""}>Talvez</option>
+            </select>
+          </td>
+
+          <td class="col-reason">
+            <textarea class="reasonInput" data-role="reason" placeholder="ex: fora do escopo, duplicado, não é estudo primário...">${escapeHTML(reason)}</textarea>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    tbody.querySelectorAll('select[data-role="decision"]').forEach(sel => applyDecisionClass(sel));
+
+    updateStats(filtered.length);
+  }
+
+  $("#tbody").addEventListener("change", (ev) => {
+    const t = ev.target;
+    const tr = t.closest("tr");
+    if (!tr) return;
+    const id = Number(tr.dataset.id);
+    const row = viewRows.find(r => r._id === id);
+    if (!row) return;
+
+    if (t.dataset.role === "decision"){
+      row.decision = t.value;
+      applyDecisionClass(t);
+      updateStats(Number($("#statShown").textContent) || 0);
+    }
+  });
+
+  $("#tbody").addEventListener("input", (ev) => {
+    const t = ev.target;
+    const tr = t.closest("tr");
+    if (!tr) return;
+    const id = Number(tr.dataset.id);
+    const row = viewRows.find(r => r._id === id);
+    if (!row) return;
+
+    if (t.dataset.role === "reason") row.reason = t.value;
+  });
+
+  $("#termsInput").addEventListener("input", () => render());
+  $("#filterInput").addEventListener("input", () => render());
+  $("#decisionFilter").addEventListener("change", () => render());
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){
+      e.preventDefault();
+      $("#filterInput").focus();
+    }
+  });
+
+  $("#csvFile").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const parsed = parseCSV(text);
+    headers = parsed.headers;
+    rawRows = parsed.data;
+
+    const headersNorm = headers.map(normalizeHeader);
+    detected = detectColumns(headersNorm);
+
+    const normMap = new Map();
+    headers.forEach((h, i) => normMap.set(headersNorm[i], h));
+
+    const titleCol = detected.title ? normMap.get(detected.title) : null;
+    const absCol   = detected.abstract ? normMap.get(detected.abstract) : null;
+    const keyCol   = detected.keywords ? normMap.get(detected.keywords) : null;
+    const doiCol   = detected.doi ? normMap.get(detected.doi) : null;
+
+    viewRows = rawRows.map((obj, idx) => ({
+      ...obj,
+      _id: idx + 1,
+      _title: titleCol ? (obj[titleCol] ?? "") : "",
+      _abstract: absCol ? (obj[absCol] ?? "") : "",
+      _keywords: keyCol ? (obj[keyCol] ?? "") : "",
+      _doi: doiCol ? (obj[doiCol] ?? "") : "",
+      decision: "",
+      reason: ""
+    }));
+
+    render();
+  });
+
+  function toCSVValue(v){
+    const s = String(v ?? "");
+    const escaped = s.replaceAll('"','""');
+    return `"${escaped}"`;
+  }
+
+  function downloadCSV(filename, csvText){
+    const blob = new Blob([csvText], {type: "text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  $("#exportBtn").addEventListener("click", () => {
+    if (viewRows.length === 0) return;
+
+    const outHeaders = [...headers, "decision", "reason"];
+    const lines = [];
+    lines.push(outHeaders.map(toCSVValue).join(","));
+
+    for (const r of viewRows){
+      const base = headers.map(h => toCSVValue(r[h]));
+      base.push(toCSVValue(r.decision));
+      base.push(toCSVValue(r.reason));
+      lines.push(base.join(","));
+    }
+
+    const date = new Date();
+    const stamp = [
+      date.getFullYear(),
+      String(date.getMonth()+1).padStart(2,"0"),
+      String(date.getDate()).padStart(2,"0"),
+      String(date.getHours()).padStart(2,"0"),
+      String(date.getMinutes()).padStart(2,"0")
+    ].join("");
+
+    downloadCSV(`triagem_slr_${stamp}.csv`, lines.join("\n"));
+  });
+
+  $("#clearDecisionsBtn").addEventListener("click", () => {
+    if (viewRows.length === 0) return;
+
+    const filter = $("#filterInput").value.trim().toLowerCase();
+    const decisionFilter = $("#decisionFilter").value;
+
+    const targets = viewRows.filter(r => {
+      if (decisionFilter === "read" && r.decision !== "read") return false;
+      if (decisionFilter === "exclude" && r.decision !== "exclude") return false;
+      if (decisionFilter === "maybe" && r.decision !== "maybe") return false;
+      if (decisionFilter === "undecided" && r.decision) return false;
+      if (!filter) return true;
+      return rowTextForFilter(r).includes(filter);
+    });
+
+    for (const r of targets){
+      r.decision = "";
+      r.reason = "";
+    }
+    render();
+  });
+
+  $("#resetAllBtn").addEventListener("click", () => {
+    rawRows = [];
+    viewRows = [];
+    headers = [];
+    detected = { title:null, abstract:null, keywords:null, doi:null };
+    $("#csvFile").value = "";
+    $("#filterInput").value = "";
+    $("#termsInput").value = "";
+    $("#decisionFilter").value = "all";
+    render();
+  });
+
+})();
+</script>
+</body>
+</html>
