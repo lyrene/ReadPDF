@@ -325,7 +325,9 @@
     }
 
     .text-layer span.hit {
-      box-shadow: inset 0 -1.05em 0 var(--hit-color, rgba(255,255,0,0.5));
+      background-repeat: no-repeat;
+      background-position: 0 100%;
+      background-size: 100% 1.08em;
     }
 
     .empty, .loading {
@@ -480,7 +482,7 @@
       selectedDocIndex: -1,
       terms: [],
       zoom: 1.3,
-      palette: ['rgba(255,243,163,0.42)', 'rgba(199,249,204,0.42)', 'rgba(189,224,254,0.42)', 'rgba(255,214,165,0.42)', 'rgba(241,192,232,0.42)', 'rgba(217,237,146,0.42)', 'rgba(205,218,253,0.42)', 'rgba(255,202,212,0.42)', 'rgba(184,242,230,0.42)', 'rgba(253,228,207,0.42)', 'rgba(208,244,222,0.42)', 'rgba(228,193,249,0.42)'],
+      palette: ['rgba(255, 211, 61, 0.72)', 'rgba(80, 220, 140, 0.68)', 'rgba(90, 170, 255, 0.68)', 'rgba(255, 159, 67, 0.70)', 'rgba(214, 90, 190, 0.60)', 'rgba(160, 196, 0, 0.68)', 'rgba(120, 120, 255, 0.62)', 'rgba(255, 99, 132, 0.60)', 'rgba(0, 191, 166, 0.66)', 'rgba(255, 127, 80, 0.64)', 'rgba(76, 175, 80, 0.68)', 'rgba(156, 39, 176, 0.56)'],
     };
 
     const els = {
@@ -871,26 +873,45 @@ renderTextLayerManually(textLayerDiv, textContent, viewport, pdfjsLib);
         span.style.backgroundRepeat = '';
         span.style.backgroundSize = '';
         span.style.backgroundPosition = '';
-        span.style.boxShadow = '';
       });
 
       if (!ranges?.length || !pageItems?.length || !spans.length) return;
 
-      const itemStyles = pageItems.map(() => []);
+      const itemSegments = pageItems.map(() => []);
 
       ranges.forEach(range => {
         pageItems.forEach((item, itemIndex) => {
-          if (range.start < item.end && range.end > item.start) {
-            itemStyles[itemIndex].push(range.color);
-          }
+          const overlapStart = Math.max(range.start, item.start);
+          const overlapEnd = Math.min(range.end, item.end);
+          if (overlapStart >= overlapEnd) return;
+
+          const itemLength = Math.max(item.end - item.start, 1);
+          const startPercent = ((overlapStart - item.start) / itemLength) * 100;
+          const endPercent = ((overlapEnd - item.start) / itemLength) * 100;
+
+          itemSegments[itemIndex].push({
+            color: range.color,
+            startPercent: Math.max(0, Math.min(100, startPercent)),
+            endPercent: Math.max(0, Math.min(100, endPercent)),
+          });
         });
       });
 
       spans.forEach((span, index) => {
-        const colors = itemStyles[index] || [];
-        if (!colors.length) return;
+        const segments = itemSegments[index] || [];
+        if (!segments.length) return;
+
+        const layers = segments
+          .filter(segment => segment.endPercent > segment.startPercent)
+          .map(segment => `linear-gradient(90deg, transparent ${segment.startPercent}%, ${segment.color} ${segment.startPercent}%, ${segment.color} ${segment.endPercent}%, transparent ${segment.endPercent}%)`);
+
+        if (!layers.length) return;
+
         span.classList.add('hit');
-        span.style.setProperty('--hit-color', colors[0]);
+        span.style.backgroundImage = layers.join(', ');
+        span.style.backgroundRepeat = 'no-repeat';
+        span.style.backgroundSize = '100% 1.08em';
+        span.style.backgroundPosition = '0 100%';
       });
     }
 
