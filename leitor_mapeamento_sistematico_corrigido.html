@@ -325,7 +325,7 @@
     }
 
     .text-layer span.hit {
-      box-shadow: inset 0 -1.05em 0 var(--hit-color, rgba(255, 235, 59, 0.32));
+      box-shadow: inset 0 -1.05em 0 var(--hit-color, rgba(255,255,0,0.5));
     }
 
     .empty, .loading {
@@ -468,6 +468,7 @@
   </div>
 
   <script type="module">
+    
   import * as pdfjsLib from './pdfjs/build/pdf.mjs';
 //  import { TextLayer } from './pdfjs/web/viewer.mjs';
 
@@ -480,7 +481,7 @@
       terms: [],
       zoom: 1.3,
       palette: ['#fff3a3', '#c7f9cc', '#bde0fe', '#ffd6a5', '#f1c0e8', '#d9ed92', '#cddafd', '#ffcad4', '#b8f2e6', '#fde4cf', '#d0f4de', '#e4c1f9'],
-      highlightAlpha: 0.32,
+      highlightAlpha: 0.38,
     };
 
     const els = {
@@ -512,6 +513,47 @@
     renderDocList();
     renderTermLegend();
 
+    function renderTextLayerManually(textLayerDiv, textContent, viewport, pdfjsLib) {
+  textLayerDiv.innerHTML = '';
+  textLayerDiv.style.position = 'absolute';
+  textLayerDiv.style.left = '0';
+  textLayerDiv.style.top = '0';
+  textLayerDiv.style.width = `${viewport.width}px`;
+  textLayerDiv.style.height = `${viewport.height}px`;
+  textLayerDiv.style.overflow = 'hidden';
+  textLayerDiv.style.opacity = '1';
+  textLayerDiv.style.lineHeight = '1';
+  textLayerDiv.style.pointerEvents = 'auto';
+  textLayerDiv.style.userSelect = 'text';
+  textLayerDiv.style.transformOrigin = '0 0';
+
+  for (const item of textContent.items) {
+    if (!item.str) continue;
+
+    const span = document.createElement('span');
+    span.textContent = item.str;
+    span.style.position = 'absolute';
+    span.style.whiteSpace = 'pre';
+    span.style.transformOrigin = '0 0';
+    span.style.color = 'transparent';
+    span.style.cursor = 'text';
+
+    const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+    const x = tx[4];
+    const y = tx[5];
+    const fontHeight = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]) || 10;
+    const angle = Math.atan2(tx[1], tx[0]);
+
+    span.style.left = `${x}px`;
+    span.style.top = `${y - fontHeight}px`;
+    span.style.fontSize = `${fontHeight}px`;
+    span.style.fontFamily = 'sans-serif';
+    span.style.transform = `rotate(${angle}rad)`;
+
+    textLayerDiv.appendChild(span);
+  }
+}
+    
     function bindEvents() {
       els.pickFilesBtn.addEventListener('click', () => els.pdfInput.click());
       els.pdfInput.addEventListener('change', async (event) => {
@@ -702,12 +744,17 @@
         textLayerDiv.style.width = `${viewport.width}px`;
         textLayerDiv.style.height = `${viewport.height}px`;
 
+
+const textContent = await page.getTextContent();
+renderTextLayerManually(textLayerDiv, textContent, viewport, pdfjsLib);
+
+        /*
         const textContent = await page.getTextContent();
         await new TextLayer({
           textContentSource: textContent,
           container: textLayerDiv,
           viewport,
-        }).render();
+        }).render();*/
 
         applyHighlightsToPage(textLayerDiv, analysis.pageMatches[pageNumber - 1], analysis.pageItemMaps[pageNumber - 1]);
 
@@ -851,8 +898,8 @@
 
         const step = 100 / colors.length;
         const pieces = colors.map((color, idx) => `${color} ${idx * step}% ${(idx + 1) * step}%`);
-        span.style.boxShadow = 'none';
         span.style.backgroundImage = `linear-gradient(90deg, ${pieces.join(', ')})`;
+        span.style.boxShadow = 'none';
         span.style.backgroundRepeat = 'no-repeat';
         span.style.backgroundSize = '100% 1.05em';
         span.style.backgroundPosition = '0 100%';
